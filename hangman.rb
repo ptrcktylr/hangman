@@ -89,6 +89,7 @@ class Hangman
     if guessed_letter == "save"
       system "clear"
       puts "Saved game. Quitting.."
+      save_game
       exit
     end
 
@@ -130,6 +131,46 @@ class Hangman
     puts "--------------------------"
   end
 
+  def to_json
+    {
+      secret_word: @secret_word,
+      incorrect_guesses_remaining: @incorrect_guesses_remaining,
+      guessed_letters: @guessed_letters,
+      hidden_word: @hidden_word
+    }.to_json
+  end
+
+  def save_game
+    # save data
+    save_data = self.to_json
+
+    # file name
+    time = Time.new
+    file_name = "./save_data/#{time.to_s.tr(" :-","_")[0...-6]}.json"
+
+    # create file
+    file = File.new(file_name, "w")
+    file.puts save_data
+    file.close
+  end
+
+  def self.from_json(file_name)
+    # open file
+    file = File.open(file_name)
+    lines = file.read.chomp
+
+    # get data
+    save_data = JSON.load(lines)
+
+    # create object with data
+    init_data = [save_data['secret_word'], save_data['incorrect_guesses_remaining'], save_data['guessed_letters'], save_data['hidden_word']]
+    return Hangman.new(init_data[0], init_data[1], init_data[2], init_data[3])
+  end
+
+  def self.get_save_files
+    return Dir['./save_data/*']
+  end
+
 end
 
 # when starting, load or start new game
@@ -139,6 +180,8 @@ end
 
 # Now implement the functionality where, at the start of any turn, instead of making a guess the player should also have the option to save the game. Remember what you learned about serializing objects… you can serialize your game class too!
 # When the program first loads, add in an option that allows you to open one of your saved games, which should jump you exactly back to where you were when you saved. Play on!
+
+# Main
 
 puts "Would you like to start a new game? (y/n)"
 new_game = gets.chomp.downcase
@@ -154,7 +197,40 @@ if new_game == "y"
   game = Hangman.new
   game.run
 else
-  puts "loading save data..."
+  puts "Loading save data..."
+  files = Hangman.get_save_files
+  if files.empty?
+    # no loads
+    puts "There are no saves!"
+    puts "Quitting game..."
+    exit
+  else
+    # loading file
+    system "clear"
+    puts "Which save would you like to load?"
+    puts "--------------------------"
+    files.each_with_index {|file, idx| puts "#{idx} #{file[12..-6]}"}
+    puts "--------------------------"
+
+    # getting input to load
+    file_idx_to_load = gets.chomp
+
+    # check input
+    re = /^\d+$/
+    while !re.match?(file_idx_to_load) || !file_idx_to_load.to_i.between?(0,files.length-1)
+      puts "Invalid option. Please choose a number cooresponding to a save."
+      puts "Which save would you like to load?"
+      puts "--------------------------"
+      files.each_with_index {|file, idx| puts "#{idx} #{file[12..-6]}"}
+      puts "--------------------------"
+      file_idx_to_load = gets.chomp
+    end
+
+    # load and run game
+    game = Hangman.from_json(files[file_idx_to_load.to_i])
+    game.run
+
+  end
 end
 
 
